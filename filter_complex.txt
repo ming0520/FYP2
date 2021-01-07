@@ -1,0 +1,32 @@
+ffmpeg -y -i example.mp4 -vf "select='between(t,3,22)+between(t,37,144)+between(t,149,314)+between(t,318,392)+between(t,412,520)+between(t,1197,1217)',setpts=N/FRAME_RATE/TB" -af "aselect='between(t,3,22)+between(t,37,144)+between(t,149,314)+between(t,318,392)+between(t,412,520)+between(t,1197,1217)',asetpts=N/SR/TB" example_FILTERED.mp4
+
+ffmpeg -y -i example.mp4 -vf "select='
+between(t,0.1,0.7333333333333333)
++between(t,1.2333333333333334,4.8)
++between(t,4.966666666666667,10.466666666666667)
++between(t,10.6,13.066666666666666)
++between(t,13.733333333333333,17.333333333333332)
++between(t,39.9,40.56666666666667)',
+setpts=N/FRAME_RATE/TB" -af 
+
+
+"aselect='between(t,0.1,0.7333333333333333)+between(t,1.2333333333333334,4.8)+between(t,4.966666666666667,10.466666666666667)+between(t,10.6,13.066666666666666)+between(t,13.733333333333333,17.333333333333332)+between(t,39.9,40.56666666666667)',asetpts=N/SR/TB" example_FILTERED.mp4
+
+ffmpeg -y -i example.mp4 -vf -filter_complex "\
+[0:v]trim=0.1:0.7333333333333333,setpts=PTS-STARTPTS[v0]; \
+[0:a]atrim=0.1:0.7333333333333333,asetpts=PTS-STARTPTS[a0]; \
+[0:v]trim=1.2333333333333334:4.8,setpts=PTS-STARTPTS[v1]; \
+[0:a]atrim=1.2333333333333334:4.8,asetpts=PTS-STARTPTS[v1]; \
+[0:v]trim=10.6:13.066666666666666,setpts=PTS-STARTPTS[v2]; \
+[0:a]atrim=10.6:13.066666666666666,asetpts=PTS-STARTPTS[a2]; \
+[v0][a0][v1][a1][v2][a2]concat=n=3:v=1:a=1[outv][outa]" \
+-map "[outv]" -map "[outa]" filter_complex.mp4
+
+ffmpeg -i input.mp4  -filter_complex \
+"[0:v]crop='if(gte(iw,ih),ih,iw):if(gte(ih,iw),iw,ih)',scale=720x720,split=3[1v][2v][3v]; \
+ [1v]trim=0:4.95,setpts=PTS-STARTPTS[v1]; \
+ [2v]trim=4.95:6.75,setpts=(PTS-STARTPTS)/0.1[v2]; \
+ [3v]trim=6.75:8,setpts=PTS-STARTPTS[v3]; \
+ [v1][v2][v3]concat=n=3:v=1:a=0[out]" \
+-map [out] -an -c:v libx264 -profile:v high -level 4.1 \
+-preset superfast -crf 20 -r 30 output.mp4

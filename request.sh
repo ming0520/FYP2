@@ -1,0 +1,1 @@
+curl -X POST -F file=@example_test.mp4 http://35.247.153.68/upload/ --output a.mp4
