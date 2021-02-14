@@ -50,15 +50,21 @@ from module.Timestamp import Timestamp
 
 class AutoEdit:
     def __init__(self, file=None, ba='160000', ac='1', ar='16000',output_format='.wav', fps = 30.0, 
-                 st = 0.04, fm = 4, lt = 2.00, verbose = False,
+                 st = 0.04, fm = 4, lt = 2.00, verbose = False, isRender = True,
                  log=False, mono = True, 
                  model='Model/mymodel_78_18.h5'):
         #parameter for ffmpeg to convert the file
         self.MODEL_PATH = model
         self.INPUT_FILE = file
-        self.FILENAME = file.split('.')[0]
+        if(file != None):
+            self.FILENAME = file.split('.')[0]
+        else:
+            self.FILENAME = None
         self.AUDIO_OUTPUT_FORMAT = output_format
-        self.AUDIO_OUTPUT = f'{self.FILENAME}{self.AUDIO_OUTPUT_FORMAT}'
+        if(file != None):
+            self.AUDIO_OUTPUT = f'{self.FILENAME}{self.AUDIO_OUTPUT_FORMAT}'
+        else:
+            self.AUDIO_OUTPUT = None
         
         self.BITRATE_AUDIO = ba
         self.AUDIO_CHANEL = ac
@@ -87,6 +93,7 @@ class AutoEdit:
         self.log = log
         self.isMono = mono
         self.VOSK_PATH = 'vosk-model-small-en-us-0.15'
+        self.isRender = isRender
         # self.VOSK_PATH = 'vosk-model-en-us-aspire-0.2'
             
     def extract_audio(self):
@@ -96,6 +103,9 @@ class AutoEdit:
         cmd = ['ffmpeg', '-y' ,'-i',self.INPUT_FILE,'-acodec','pcm_s16le' ,'-b:a', self.BITRATE_AUDIO, '-ac', self.AUDIO_CHANEL, 
                '-ar', self.AUDIO_RATE, '-vn', f'{self.AUDIO_OUTPUT}']
         #ffmpeg -i "%%a" -acodec pcm_s16le -ac 1 -ar 16000 -af lowpass=3000,highpass=200 "converted\%%~na.wav
+        # ffmpeg -y -i SBLQ.mp4 -acodec pcm_s16le -b:a 16k -ac 1 -ar 16000 -vn output.wav
+
+        # ffmpeg -y -i SBLQ.mp4 -acodec libmp3lame -b:a 16k -ac 1 -ar 16000 -vn output.mp3
         if(not self.VERBOSE):
             cmd.extend(['-nostats', '-loglevel', '0'])
         subprocess.call(cmd)
@@ -160,10 +170,10 @@ class AutoEdit:
             
     def execute(self):
         print('Executing command...')
-        command = 'run.bat'
-        if os.path.exists('run.bat'):
-            if self.log:
-                 command += ' > log.txt'    
+        command = 'bash ./run.sh'
+        if os.path.exists('run.sh'):
+            # if self.log:
+            #      command += ' > log.txt'    
             output = subprocess.call(command,shell=True)
         if self.VERBOSE:
             print("Complex filter command success") if output == 0 else print("Complex filter command failed!")
@@ -171,14 +181,16 @@ class AutoEdit:
             
             
     def write_to_bat(self,command):
-        if os.path.exists('run.bat'):
-            os.remove(f'run.bat')
-        file1 = open("run.bat","w")
+        if(self.isRender == False):
+            return
+        if os.path.exists('run.sh'):
+            os.remove(f'run.sh')
+        file1 = open("run.sh","w")
         file1.write(command)
         file1.close()
-        filename = 'run.bat'
-        if self.log:
-            filename += ' > log.txt'
+        filename = 'run.sh'
+        # if self.log:
+        #     filename += ' > log.txt'
         return filename
     
     def produce_concat_file(self):
@@ -224,7 +236,8 @@ class AutoEdit:
 #         if self.log:
 #             total_string += " > log.txt 2>&1";
         bat_path = self.write_to_bat(total_string)
-        output = subprocess.call(bat_path,shell=True)
+        # output = subprocess.call(bat_path,shell=True)
+        self.execute()
         if self.VERBOSE:
             print("Select filter command success") if output == 0 else print("Select filter command failed!")
             
@@ -293,9 +306,10 @@ class AutoEdit:
         filter = filter + f' -map "[out]" {self.FILENAME}_COMPLEX.mp4'
 
         bat_path = self.write_to_bat(filter)
+        self.execute()
         output = 1
         if self.VERBOSE:
-            print("Complex frilter command success") if output == 0 else print("Complex filter command failed!")
+            print("Complex filter command success") if output == 0 else print("Complex filter command failed!")
     
     
     def post_process(self):
@@ -490,15 +504,14 @@ class AutoEdit:
                 start = current_start
                 render_list.append(segment)
                 counter = counter + 1
-            word = word + ts.word + " "
-        last = include_list[-1]
-        render_list.append(Timestamp(last.start,last.end,last.word))
+            word = word + ts.word + " "    
 
-        self.render_list = render_list
-            
+        render_list.append(Timestamp(include_list[-1].start,include_list[-1].end,include_list[-1].word))
+        self.render_list = render_list           
 
 
-    def generate_complex_filter(self,render_list):
+    def generate_complex_filter(self):
+        render_list = self.render_list
         print('Generating complex filter...')
         trim = []
         duration_list = []
@@ -525,9 +538,20 @@ class AutoEdit:
         # Start to generate ending of command
         filter += f'concat=n={number_of_segment}:v=1:a=1 [out]'
         filter = '"' + filter + '"'
-        filter = f'ffmpeg -y -i {self.INPUT_FILE} -filter_complex ' + filter
-        filter = filter + f' -map "[out]" {self.FILENAME}_COMPLEX.mp4'
-        bat_path = self.write_to_bat(filter)
-        print('Complete complex filter...')
+        
+        if(self.isRender):
+            filter = f'ffmpeg -y -i {self.INPUT_FILE} -filter_complex ' + filter
+        else:
+            filter = f'-filter_complex ' + filter
+
+        filter = filter + f' -map "[out]"'
+
+        if(self.isRender):
+            filter = filter + f' {self.FILENAME}_COMPLEX.mp4'
+            bat_path = self.write_to_bat(filter)
+            print('Complete complex filter...')
+            self.filter = filter
+        else:
+            self.filter = filter
         
         
