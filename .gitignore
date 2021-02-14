@@ -33,3 +33,8 @@ __pycache__/
 *.zip
 sync.ffs_db
 *.exe
+/module/vosk-model-small-en-us-0.15
+/record
+/vosk-model-small-en-us-0.15
+/vosk-model-en-us-aspire-0.2
+*.mp3
