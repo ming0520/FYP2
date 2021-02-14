@@ -1,1 +1,13 @@
 curl -X POST -F file=@example.mp4 http://127.0.0.1:5000/upload/
+
+exampleLQ.mp4
+
+curl -X POST -F file=@exampleLQ.mp4 http://35.247.153.68/upload/ > example_server.mp4
+
+curl -X POST -F file=@output.wav http://35.247.153.68/api/
+
+curl -X POST -F file=@exampleLQ.mp4 http://127.0.0.1:5000/upload/
+
+curl -X POST -F file=@output.wav http://127.0.0.1:5000/api/
+
+ffmpeg -y -i example.mp4 -acodec libmp3lame -b:a 16k -ac 1 -ar 16000 -vn output.wav
